@@ -379,7 +379,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     try {
 const {
   useState,
-  useEffect
+  useEffect,
+  useRef
 } = React;
 const CATEGORIES = [{
   id: "work",
@@ -403,8 +404,8 @@ const CATEGORIES = [{
   bg: "#FFFBEB"
 }];
 const HOURS = Array.from({
-  length: 18
-}, (_, i) => i + 6); // 6 AM – 11 PM
+  length: 24
+}, (_, i) => i); // 12 AM – 12 AM (full 24-hour day)
 const HOUR_H = 64;
 const fmt12 = h => {
   if (h === 0) return "12 AM";
@@ -445,6 +446,7 @@ function App() {
     category: "work",
     note: ""
   });
+  const gridScrollRef = useRef(null);
 
   /* ─── Global styles ─── */
   useEffect(() => {
@@ -523,7 +525,15 @@ function App() {
   });
   const todayEvts = events.filter(e => e.date === dateKey(sel));
   const nowDec = now.getHours() + now.getMinutes() / 60;
-  const showLine = isToday(sel) && nowDec >= 6 && nowDec <= 24;
+  const showLine = isToday(sel) && nowDec >= 0 && nowDec <= 24;
+
+  /* ─── Keep the (now full 24h) grid scrolled to something useful instead of opening at 12 AM ─── */
+  useEffect(() => {
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const targetHour = isToday(sel) ? Math.max(0, nowDec - 2) : 7; // ~2hrs before now, or 7 AM for other days
+    el.scrollTop = targetHour * HOUR_H;
+  }, [sel]);
   const daysInMo = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
   const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1).getDay();
   const upcoming = events.map(e => ({
@@ -1035,6 +1045,7 @@ function App() {
       fontSize: 13
     }
   }, "››")))), /*#__PURE__*/React.createElement("div", {
+    ref: gridScrollRef,
     style: {
       flex: 1,
       overflowY: "auto"
@@ -1051,7 +1062,7 @@ function App() {
     onClick: () => openAdd(h),
     style: {
       position: "absolute",
-      top: (h - 6) * HOUR_H,
+      top: h * HOUR_H,
       left: 54,
       right: 0,
       height: HOUR_H,
@@ -1062,7 +1073,7 @@ function App() {
     key: "L" + h,
     style: {
       position: "absolute",
-      top: (h - 6) * HOUR_H - 8,
+      top: h * HOUR_H - 8,
       left: 0,
       width: 50,
       textAlign: "right",
@@ -1075,7 +1086,7 @@ function App() {
   }, fmt12(h))), showLine && /*#__PURE__*/React.createElement("div", {
     style: {
       position: "absolute",
-      top: (nowDec - 6) * HOUR_H,
+      top: nowDec * HOUR_H,
       left: 46,
       right: 0,
       display: "flex",
@@ -1100,7 +1111,7 @@ function App() {
       opacity: 0.8
     }
   })), todayEvts.map(ev => {
-    const top = (ev.startHour + ev.startMin / 60 - 6) * HOUR_H;
+    const top = (ev.startHour + ev.startMin / 60) * HOUR_H;
     const ht = Math.max(22, (ev.endHour + ev.endMin / 60 - ev.startHour - ev.startMin / 60) * HOUR_H);
     const cat = CATEGORIES.find(x => x.id === ev.category) || CATEGORIES[0];
     return /*#__PURE__*/React.createElement("div", {
